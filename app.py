@@ -35,7 +35,7 @@ def simulate(i, r, g, C, years, tax):
         yearly_interest = C * i
         
         # 3. Tax on Net Yield (Income minus interest deduction)
-        taxable_yield = max(0, yearly_income - yearly_interest)
+        taxable_yield = max(0, yearly_income) # - yearly_interest) Removed as in france not considered
         net_income = yearly_income - yearly_interest - (taxable_yield * tax)
         
         # 4. REINVEST: Net income is added to the asset and the tax basis
