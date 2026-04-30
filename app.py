@@ -28,23 +28,34 @@ returns = np.linspace(r_min/100, r_max/100, 40)
 # ---------------- MODEL ----------------
 def simulate(i, r, g, C, years, tax):
 
-    # effective return after annual tax drag
-    effective_r = r * (1 - tax)
+    V = C
+    base = C
 
-    # investment compounding (THIS is where slope comes from)
-    V = C * (1 + effective_r) ** years
+    for _ in range(years):
 
-    # structural capital growth (applies to base, not portfolio)
-    V += C * g * years
+        # 1. structural capital growth (can be negative!)
+        base = base * (1 + g)
 
-    # debt (linear, but interacts through time scaling)
-    debt = C + C * i * years
+        # 2. investment return on full portfolio
+        gains = V * r
 
-    # final capital gains tax
-    gain = max(V - C, 0)
-    final_tax = gain * tax
+        # 3. tax on gains
+        gains_after_tax = gains * (1 - tax)
 
-    net = V - debt - final_tax
+        # 4. reinvest
+        V = V + gains_after_tax
+
+        # 5. add structural growth contribution
+        V += base * g
+
+        # 6. pay interest (fixed yearly cost)
+        V -= C * i
+
+        # allow negative dynamics (important!)
+        # no clipping
+
+    # 7. final repayment
+    net = V - C
 
     return net
 
