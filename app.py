@@ -26,19 +26,33 @@ interest_rates = np.linspace(i_min/100, i_max/100, 40)
 returns = np.linspace(r_min/100, r_max/100, 40)
 
 # ---------------- MODEL ----------------
-def simulate(i, alpha, g, C, years, tax):
+def simulate(i, r, g, C, years, tax):
 
-    # total effective return
-    r = g + alpha
+    V = C
+    annual_interest = C * i
 
-    value = C * (1 + r) ** years
+    for _ in range(years):
 
-    interest_cost = C * i * years
+        # 1. investment return
+        gains = V * r
+        gains_after_tax = gains * (1 - tax)
 
-    gain = max(value - C, 0)
-    tax_paid = gain * tax
+        # 2. reinvest
+        V += gains_after_tax
 
-    net = value - interest_cost - tax_paid - C
+        # 3. structural capital growth
+        V += C * g
+
+        # 4. pay interest
+        V -= annual_interest
+
+    # 5. final capital gain
+    gain = max(V - C, 0)
+
+    final_tax = gain * tax
+
+    # 6. final repayment + tax
+    net = V - C - final_tax
 
     return net
 
