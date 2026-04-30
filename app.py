@@ -54,7 +54,14 @@ Z = np.zeros_like(X)
 
 for i in range(len(returns)):
     for j in range(len(interest_rates)):
-        Z[i, j] = simulate(interest_rates[j], returns[i])
+
+        val = simulate(interest_rates[j], returns[i])
+
+        if val is None:
+            st.error(f"simulate returned None at i={i}, j={j}")
+            val = 0   # fallback so app doesn't crash
+
+        Z[i, j] = val
 
 # ---------------- BREAK-EVEN CURVE ----------------
 breakeven = []
