@@ -29,33 +29,28 @@ returns = np.linspace(r_min/100, r_max/100, 40)
 def simulate(i, r, g, C, years, tax):
 
     V = C
-    base = C
 
     for _ in range(years):
 
-        # 1. structural capital growth (can be negative!)
-        base = base * (1 + g)
-
-        # 2. investment return on full portfolio
+        # 1. investment growth
         gains = V * r
 
-        # 3. tax on gains
-        gains_after_tax = gains * (1 - tax)
+        # 2. pay interest (fixed yearly cost)
+        interest = C * i
 
-        # 4. reinvest
-        V = V + gains_after_tax
+        # 3. update portfolio BEFORE tax
+        V = V + gains - interest
 
-        # 5. add structural growth contribution
-        V += base * g
+        # 4. tax on yearly gains only
+        taxable = max(gains - interest, 0)
+        V -= taxable * tax
 
-        # 6. pay interest (fixed yearly cost)
-        V -= C * i
+        # 5. capital drift (can be negative)
+        V += C * g
 
-        # allow negative dynamics (important!)
-        # no clipping
-
-    # 7. final repayment
-    net = V - C
+    # final liquidation
+    final_tax = max(V - C, 0) * tax
+    net = V - C - final_tax
 
     return net
 
