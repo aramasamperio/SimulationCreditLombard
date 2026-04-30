@@ -23,23 +23,30 @@ interest_rates = np.linspace(interest_min/100, interest_max/100, 40)
 returns = np.linspace(return_min/100, return_max/100, 40)
 
 # ---------------- MODEL ----------------
-def simulate(loan_rate, inv_rate):
-    equity = 0
-    n = years
+import numpy as np
 
-    for _ in range(n):
-        # investment grows (reinvested annually)
-        equity = equity * (1 + inv_rate)
+def simulate(loan, r, i, tax, years=5):
 
-        # no monthly cashflow — capital base only
-        equity += 0
+    value = loan
+    total_interest = 0
 
-    # loan cost (compounded yearly approximation)
-    debt_cost = credit * ((1 + loan_rate)**n - 1)
+    for _ in range(years):
 
-    # final net
-    return equity - debt_cost
+        # investment grows
+        value = value * (1 + r)
 
+        # interest paid on loan (balloon structure → interest only yearly)
+        interest_payment = loan * i
+        total_interest += interest_payment
+
+    # capital gain
+    gain = value - loan
+
+    tax_paid = max(gain, 0) * tax
+
+    net = value - total_interest - tax_paid - loan
+
+    return net
 
 # ---------------- MATRIX ----------------
 X, Y = np.meshgrid(interest_rates, returns)
