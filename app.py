@@ -3,43 +3,48 @@ import streamlit as st
 import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
-st.title("📊 Leveraged Investment Simulator (Fixed Model)")
+st.title("📊 Leveraged Investment Engine v2")
 
 # ---------------- INPUTS ----------------
-credit = st.sidebar.slider("Loan (€)", 50000, 200000, 105825)
+C = st.sidebar.slider("Capital / Loan (€)", 50000, 200000, 105825)
 
 years = st.sidebar.slider("Years", 1, 10, 5)
 
-tax_rate = st.sidebar.slider("Tax (%)", 0, 50, 30) / 100
+tax = st.sidebar.slider("Tax (%)", 0, 50, 30) / 100
 
-interest_min = st.sidebar.slider("Min Interest (%)", 1, 10, 3)
-interest_max = st.sidebar.slider("Max Interest (%)", 3, 15, 8)
+# NEW PARAMETER: capital growth
+g = st.sidebar.slider("Capital Growth (g) (%)", 0.0, 10.0, 2.0) / 100
 
-return_min = st.sidebar.slider("Min Return (%)", 1, 10, 4)
-return_max = st.sidebar.slider("Max Return (%)", 5, 20, 12)
+# RANGES
+i_min = st.sidebar.slider("Min Interest (%)", 1.0, 10.0, 3.0)
+i_max = st.sidebar.slider("Max Interest (%)", 3.0, 15.0, 8.0)
 
-# grids
-interest_rates = np.linspace(interest_min/100, interest_max/100, 40)
-returns = np.linspace(return_min/100, return_max/100, 40)
+r_min = st.sidebar.slider("Min Return (%)", 1.0, 10.0, 4.0)
+r_max = st.sidebar.slider("Max Return (%)", 5.0, 20.0, 12.0)
+
+interest_rates = np.linspace(i_min/100, i_max/100, 40)
+returns = np.linspace(r_min/100, r_max/100, 40)
 
 # ---------------- MODEL ----------------
-import numpy as np
+def simulate(i, r, C, g, years, tax):
 
-def simulate(i, r, loan=105825, years=5, tax=0.3):
+    # capital evolves
+    capital = C * (1 + g) ** years
 
-    value = loan
+    # investment grows
+    investment = C * (1 + r) ** years
 
-    for _ in range(years):
-        value *= (1 + r)
+    # interest cost (balloon simplification)
+    interest_cost = C * i * years
 
-    interest_cost = loan * i * years
-
-    gain = max(value - loan, 0)
+    # gain tax
+    gain = max(investment - C, 0)
     tax_paid = gain * tax
 
-    net = value - interest_cost - tax_paid - loan
+    # final net value
+    net = investment + capital - interest_cost - tax_paid - C
 
-    return float(net)
+    return net
 
 # ---------------- MATRIX ----------------
 X, Y = np.meshgrid(interest_rates, returns)
@@ -47,48 +52,30 @@ Z = np.zeros_like(X)
 
 for i in range(len(returns)):
     for j in range(len(interest_rates)):
+        Z[i, j] = simulate(
+            interest_rates[j],
+            returns[i],
+            C,
+            g,
+            years,
+            tax
+        )
 
-        val = simulate(interest_rates[j], returns[i])
-
-        if val is None:
-            st.error(f"simulate returned None at i={i}, j={j}")
-            val = 0   # fallback so app doesn't crash
-
-        Z[i, j] = val
-
-# ---------------- BREAK-EVEN CURVE ----------------
-breakeven = []
-
-for r in returns:
-    row = []
-    for j in range(len(interest_rates)):
-        val = simulate(interest_rates[j], r)
-        row.append(val)
-    row = np.array(row)
-
-    # find closest zero crossing
-    idx = np.argmin(np.abs(row))
-    breakeven.append(interest_rates[idx] * 100)
-
-# ---------------- 3D PLOT (INTERACTIVE) ----------------
+# ---------------- 3D SURFACE ----------------
 fig = go.Figure()
 
 fig.add_trace(go.Surface(
     x=X*100,
     y=Y*100,
     z=Z,
-    colorscale=[
-        [0, "red"],
-        [0.5, "white"],
-        [1, "green"]
-    ],
-    opacity=0.9
+    colorscale="RdYlGn",
+    showscale=True
 ))
 
 fig.update_layout(
-    title="Net Value Surface (Interactive)",
+    title="Net Value Surface (v2)",
     scene=dict(
-        xaxis_title="Interest Rate (%)",
+        xaxis_title="Interest (%)",
         yaxis_title="Return (%)",
         zaxis_title="Net Value (€)"
     )
@@ -96,14 +83,31 @@ fig.update_layout(
 
 st.plotly_chart(fig, use_container_width=True)
 
-# ---------------- HEATMAP ----------------
-st.subheader("Heatmap View")
+# ---------------- HEATMAP + ZERO LINE ----------------
+st.subheader("Heatmap with Break-even (0 line)")
 
-fig2 = go.Figure(data=go.Heatmap(
+fig2 = go.Figure()
+
+fig2.add_trace(go.Heatmap(
     z=Z,
     x=interest_rates*100,
     y=returns*100,
     colorscale="RdYlGn"
+))
+
+# ZERO CONTOUR LINE (critical fix)
+fig2.add_trace(go.Contour(
+    z=Z,
+    x=interest_rates*100,
+    y=returns*100,
+    contours=dict(
+        coloring="lines",
+        showlabels=True,
+        start=0,
+        end=0
+    ),
+    line=dict(color="black", width=3),
+    showscale=False
 ))
 
 fig2.update_layout(
@@ -113,15 +117,8 @@ fig2.update_layout(
 
 st.plotly_chart(fig2, use_container_width=True)
 
-# ---------------- BREAKEVEN CURVE ----------------
-st.subheader("Break-even Curve")
-
-st.line_chart({
-    "Breakeven Interest (%)": breakeven
-})
-
 # ---------------- STATS ----------------
 st.subheader("Summary")
 
-st.write(f"Max Profit: €{np.max(Z):,.0f}")
-st.write(f"Min Profit: €{np.min(Z):,.0f}")
+st.write(f"Max Value: €{np.max(Z):,.0f}")
+st.write(f"Min Value: €{np.min(Z):,.0f}")
