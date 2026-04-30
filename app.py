@@ -26,15 +26,15 @@ interest_rates = np.linspace(i_min/100, i_max/100, 40)
 returns = np.linspace(r_min/100, r_max/100, 40)
 
 # ---------------- MODEL ----------------
-def simulate(i, r, g, C, years, tax):
+def simulate(i, alpha, g, C, years, tax):
 
-    # invested capital grows with BOTH effects
-    value = C * (1 + r) ** years * (1 + g) ** years
+    # total effective return
+    r = g + alpha
 
-    # debt cost (simple interest balloon)
+    value = C * (1 + r) ** years
+
     interest_cost = C * i * years
 
-    # taxable gain
     gain = max(value - C, 0)
     tax_paid = gain * tax
 
