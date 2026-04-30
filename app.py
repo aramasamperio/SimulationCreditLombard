@@ -25,30 +25,34 @@ returns = np.linspace(r_min/100, r_max/100, 40)
 # ---------------- REVISED MODEL ----------------
 def simulate(i, r, g, C, years, tax):
     asset_value = C
-    accumulated_cash = 0
+    cost_basis = C  # Tracks money already taxed (Principal + Reinvested Net Income)
     
     for _ in range(years):
-        # 1. Annual Yield (Dividends/Rent/Returns)
+        # 1. Annual Yield (calculated on CURRENT total asset value)
         yearly_income = asset_value * r
         
-        # 2. Interest Expense (Interest-only loan assumed)
+        # 2. Interest Expense (still based on the fixed initial loan C)
         yearly_interest = C * i
         
         # 3. Tax on Net Yield (Income minus interest deduction)
         taxable_yield = max(0, yearly_income - yearly_interest)
-        net_yearly_cash = yearly_income - yearly_interest - (taxable_yield * tax)
+        net_income = yearly_income - yearly_interest - (taxable_yield * tax)
         
-        # 4. Accumulate cash and grow capital
-        accumulated_cash += net_yearly_cash
+        # 4. REINVEST: Net income is added to the asset and the tax basis
+        asset_value += net_income
+        cost_basis += net_income
+        
+        # 5. CAPITAL GROWTH: The market growth (g) applies to the new total
+        # This growth is "paper gain" and hasn't been taxed yet
         asset_value *= (1 + g)
 
-    # 5. Final Liquidation
-    # Capital gain is the growth in asset value
-    capital_gain = asset_value - C
-    cap_gain_tax = max(0, capital_gain * tax)
+    # 6. FINAL LIQUIDATION
+    # We only tax the portion that exceeds our cost basis (the g growth)
+    taxable_capital_gain = max(0, asset_value - cost_basis)
+    final_tax = taxable_capital_gain * tax
     
-    # Net = Total Assets + Cash - Loan - Tax
-    net_result = (asset_value + accumulated_cash) - C - cap_gain_tax
+    # Net Wealth = (Final Value) - (Initial Loan) - (Final Tax)
+    net_result = asset_value - C - final_tax
     
     return net_result
 
